@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LogOut, ShieldCheck, Clock, AlertTriangle, FileSignature, 
-  CheckCircle2, AlertCircle, Info, ChevronRight, Activity, CalendarDays
+  CheckCircle2, AlertCircle, Info, ChevronRight, Activity, CalendarDays, X
 } from 'lucide-react';
 import { Usuario, Estudiante, Asistencia, Observacion, Notificacion, Confirmacion } from '../types';
 import { db } from '../data';
@@ -23,6 +23,7 @@ export default function AcudienteDashboard({ usuario, onLogout }: AcudienteDashb
   const [signNotiId, setSignNotiId] = useState<string | null>(null);
   const [signComment, setSignComment] = useState<string>('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     const relaciones = db.getRelaciones().filter(r => r.id_acudiente === usuario.id_usuario);
@@ -219,85 +220,139 @@ export default function AcudienteDashboard({ usuario, onLogout }: AcudienteDashb
               </div>
             )}
 
-            {/* TIMELINE SEMANAL */}
+            {/* CALENDARIO MENSUAL */}
             <div>
               <div className="flex items-center gap-2 mb-6">
-                <Activity className="w-5 h-5 text-brand-600" />
-                <h3 className="text-xl font-black text-slate-900">Timeline de Eventos</h3>
+                <CalendarDays className="w-5 h-5 text-brand-600" />
+                <h3 className="text-xl font-black text-slate-900">Vista de Asistencia y Observaciones</h3>
               </div>
               
-              <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm relative">
-                <div className="absolute left-8 md:left-12 top-8 bottom-8 w-px bg-slate-200"></div>
-                
-                <div className="space-y-8">
-                  {[...childAsistencias, ...childObservaciones].sort((a: any, b: any) => {
-                    const dateA = a.fecha || a.fecha_observacion;
-                    const dateB = b.fecha || b.fecha_observacion;
-                    return dateB.localeCompare(dateA);
-                  }).map((ev: any) => {
-                    const isAsistencia = !!ev.estado_asistencia;
-                    const date = ev.fecha || ev.fecha_observacion;
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-lg font-black text-slate-800 uppercase tracking-wide">Mayo 2026</h4>
+                </div>
+                <div className="grid grid-cols-7 gap-2 md:gap-4">
+                  {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
+                    <div key={day} className="text-center text-xs font-black text-slate-400 uppercase tracking-widest pb-2">{day}</div>
+                  ))}
+                  
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={`empty-${i}`} className="h-20 md:h-24 rounded-2xl bg-slate-50/50 border border-slate-100/50"></div>
+                  ))}
+                  
+                  {Array.from({ length: 31 }).map((_, i) => {
+                    const day = i + 1;
+                    const dateStr = `2026-05-${day.toString().padStart(2, '0')}`;
+                    const asis = childAsistencias.find(a => a.fecha === dateStr);
+                    const hasObs = childObservaciones.some(o => o.fecha_observacion === dateStr);
                     
-                    let icon = <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
-                    let iconBg = 'bg-emerald-100 border-emerald-200';
-                    let cardStyle = 'border-slate-100 hover:border-slate-200 bg-white';
-                    
-                    if (isAsistencia && ev.estado_asistencia === 'Ausente') {
-                      icon = <AlertCircle className="w-5 h-5 text-rose-500" />;
-                      iconBg = 'bg-rose-100 border-rose-200';
-                      cardStyle = 'bg-rose-50 border-rose-200';
-                    } else if (isAsistencia && ev.estado_asistencia === 'Tarde') {
-                      icon = <Clock className="w-5 h-5 text-amber-500" />;
-                      iconBg = 'bg-amber-100 border-amber-200';
-                    } else if (!isAsistencia) {
-                      if (ev.nivel_gravedad === 'Crítico' || ev.nivel_gravedad === 'Alto') {
-                        icon = <AlertTriangle className="w-5 h-5 text-rose-500" />;
-                        iconBg = 'bg-rose-100 border-rose-200';
-                        cardStyle = 'bg-rose-50 border-rose-200';
-                      } else {
-                        icon = <Info className="w-5 h-5 text-indigo-500" />;
-                        iconBg = 'bg-indigo-100 border-indigo-200';
-                      }
+                    let bgClass = "bg-white border-slate-200 hover:border-brand-300 hover:shadow-md";
+                    if (asis) {
+                      if (asis.estado_asistencia === 'Presente') bgClass = "bg-emerald-50 border-emerald-200 hover:border-emerald-400 hover:shadow-emerald-100";
+                      else if (asis.estado_asistencia === 'Tarde') bgClass = "bg-amber-50 border-amber-200 hover:border-amber-400 hover:shadow-amber-100";
+                      else if (asis.estado_asistencia === 'Ausente') bgClass = "bg-rose-50 border-rose-200 hover:border-rose-400 hover:shadow-rose-100";
                     }
 
                     return (
-                      <div key={ev.id_asistencia || ev.id_observacion} className="relative flex items-start gap-4 md:gap-8 group">
-                        <div className={`w-10 h-10 shrink-0 rounded-2xl border-2 flex items-center justify-center relative z-10 shadow-sm transition-transform group-hover:scale-110 ${iconBg}`}>
-                          {icon}
+                      <button 
+                        key={day}
+                        onClick={() => setSelectedDate(dateStr)}
+                        className={`h-20 md:h-24 rounded-2xl border transition-all duration-300 relative flex flex-col p-3 items-end justify-between group shadow-sm ${bgClass}`}
+                      >
+                        <span className={`text-sm font-black ${asis ? 'text-slate-900' : 'text-slate-600'}`}>{day}</span>
+                        <div className="flex w-full justify-start items-center gap-1.5 mt-auto">
+                          {hasObs && (
+                            <div className="w-2.5 h-2.5 rounded-full bg-slate-900 shadow-sm ring-2 ring-white/50" title="Observación disciplinaria" />
+                          )}
                         </div>
-                        
-                        <div className={`flex-1 p-5 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md ${cardStyle}`}>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                            <h4 className="font-bold text-slate-800">
-                              {isAsistencia ? `Registro de Asistencia: ${ev.estado_asistencia}` : `Observación: ${ev.tipo_observacion}`}
-                            </h4>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-white px-2 py-1 rounded-md border border-slate-100">
-                              {date}
-                            </span>
-                          </div>
-                          <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                            {isAsistencia ? (ev.observacion || 'Sin novedad en el registro.') : ev.descripcion}
-                          </p>
-                          <div className="mt-3 pt-3 border-t border-black/5 text-xs text-slate-400 font-semibold flex items-center gap-2">
-                            <CalendarDays className="w-3.5 h-3.5" />
-                            Registrado por: {ev.registrado_por}
-                          </div>
-                        </div>
-                      </div>
-                    );
+                      </button>
+                    )
                   })}
-                  
-                  {[...childAsistencias, ...childObservaciones].length === 0 && (
-                    <div className="text-center py-12 text-slate-400 font-semibold text-sm">
-                      No hay eventos registrados en la línea de tiempo.
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
           </>
         )}
       </main>
+
+      {/* MODAL DE DETALLES DEL DÍA */}
+      {selectedDate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-black text-slate-800 text-lg">Detalles del {selectedDate}</h3>
+              <button onClick={() => setSelectedDate(null)} className="text-slate-400 hover:text-slate-600 transition-colors p-2 bg-white rounded-xl shadow-sm border border-slate-200">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              {(() => {
+                const asis = childAsistencias.find(a => a.fecha === selectedDate);
+                const obsList = childObservaciones.filter(o => o.fecha_observacion === selectedDate);
+                
+                if (!asis && obsList.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-slate-400 font-semibold text-sm">
+                      No hay registros para este día.
+                    </div>
+                  );
+                }
+
+                return (
+                  <>
+                    {asis && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Asistencia</h4>
+                        <div className={`p-4 rounded-2xl border ${
+                          asis.estado_asistencia === 'Presente' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' :
+                          asis.estado_asistencia === 'Tarde' ? 'bg-amber-50 border-amber-200 text-amber-900' :
+                          'bg-rose-50 border-rose-200 text-rose-900'
+                        }`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            {asis.estado_asistencia === 'Presente' ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> :
+                             asis.estado_asistencia === 'Tarde' ? <Clock className="w-5 h-5 text-amber-500" /> :
+                             <AlertCircle className="w-5 h-5 text-rose-500" />}
+                            <span className="font-bold">{asis.estado_asistencia}</span>
+                          </div>
+                          <p className="text-sm opacity-80 font-medium ml-7">{asis.observacion || 'Sin novedad en el registro.'}</p>
+                          <div className="mt-3 pt-3 border-t border-black/5 text-xs opacity-60 font-semibold flex items-center gap-2 ml-7">
+                            Registrado por: {asis.registrado_por}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {obsList.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Observaciones Disciplinarias</h4>
+                        <div className="space-y-3">
+                          {obsList.map(obs => (
+                            <div key={obs.id_observacion} className={`p-4 rounded-2xl border ${
+                              obs.nivel_gravedad === 'Crítico' || obs.nivel_gravedad === 'Alto' ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+                            }`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                {obs.nivel_gravedad === 'Crítico' || obs.nivel_gravedad === 'Alto' ? 
+                                  <AlertTriangle className="w-5 h-5 text-rose-500" /> : 
+                                  <Info className="w-5 h-5 text-indigo-500" />
+                                }
+                                <span className="font-bold">{obs.tipo_observacion} - {obs.nivel_gravedad}</span>
+                              </div>
+                              <p className="text-sm opacity-80 font-medium ml-7">{obs.descripcion}</p>
+                              <div className="mt-3 pt-3 border-t border-black/5 text-xs opacity-60 font-semibold flex items-center gap-2 ml-7">
+                                Registrado por: {obs.registrado_por}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

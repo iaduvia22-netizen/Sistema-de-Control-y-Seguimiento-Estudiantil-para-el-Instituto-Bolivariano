@@ -32,13 +32,13 @@ export default function App() {
     }
   }, []);
 
-  const handleLogin = (data: { tipo: 'personal' | 'acudiente'; credencial: string }) => {
+  const handleLogin = (data: { tipo: 'personal'; credencial: string } | { tipo: 'acudiente'; documento: string; pin: string }) => {
     let user: Usuario | null = null;
     
     if (data.tipo === 'personal') {
       user = db.getUsuarios().find(u => u.id_usuario === data.credencial) || null;
     } else {
-      user = db.loginAcudiente(data.credencial);
+      user = db.loginAcudiente(data.documento, data.pin);
     }
     
     if (user) {

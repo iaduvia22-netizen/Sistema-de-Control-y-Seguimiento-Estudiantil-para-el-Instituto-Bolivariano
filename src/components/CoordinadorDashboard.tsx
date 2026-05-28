@@ -28,6 +28,40 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [docEst, setDocEst] = useState('');
+  const [nomEst, setNomEst] = useState('');
+  const [apeEst, setApeEst] = useState('');
+  const [gradoEst, setGradoEst] = useState('');
+  const [jorEst, setJorEst] = useState('Mañana');
+  
+  const [singleStudentSuccess, setSingleStudentSuccess] = useState<{ estudiante: any, pin: string } | null>(null);
+
+  const handleSingleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docEst || !nomEst || !apeEst || !gradoEst || !jorEst) return;
+
+    const datos = {
+      documento: docEst,
+      nombres: nomEst,
+      apellidos: apeEst,
+      grado_id: gradoEst,
+      jornada: jorEst
+    };
+    
+    const result = db.crearEstudianteIndividual(datos, usuario.id_usuario);
+    if (result) {
+      setSingleStudentSuccess(result);
+      setDocEst('');
+      setNomEst('');
+      setApeEst('');
+      setGradoEst('');
+      setJorEst('Mañana');
+      handleRefresh();
+    } else {
+      alert('Error: Estudiante duplicado o datos inválidos.');
+    }
+  };
+
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -126,6 +160,32 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800 selection:bg-brand-500 selection:text-white">
+      {singleStudentSuccess && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900 mb-2">Estudiante Creado Exitosamente</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              Entregue el siguiente PIN al acudiente para su acceso al sistema.
+            </p>
+            <div className="bg-slate-100 p-4 rounded-2xl w-full mb-6 border border-slate-200">
+              <p className="text-xs text-slate-500 font-bold uppercase mb-1">PIN de Acceso</p>
+              <p className="text-4xl font-black text-brand-600 tracking-widest font-mono">
+                {singleStudentSuccess.pin}
+              </p>
+            </div>
+            <button 
+              onClick={() => setSingleStudentSuccess(null)}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-colors"
+            >
+              Aceptar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* TOPBAR */}
       <nav className="bg-brand-900 text-white px-6 py-4 shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -263,9 +323,9 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
-              <div className="lg:col-span-1">
+              <div className="lg:col-span-1 flex flex-col gap-6">
                 <div 
-                  className={`bg-white border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center transition-all duration-300 h-full min-h-[300px] ${
+                  className={`bg-white border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center transition-all duration-300 min-h-[250px] ${
                     isDragging ? 'border-brand-500 bg-brand-50 scale-[1.02] shadow-lg' : 'border-slate-300 hover:border-brand-400 hover:bg-slate-50'
                   }`}
                   onDragOver={handleDragOver}
@@ -286,6 +346,56 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
                     Examinar Archivo
                   </button>
                   <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileInput} />
+                </div>
+
+                <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                      <Plus className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-lg font-black text-slate-900">Registro Individual</h3>
+                  </div>
+                  <form onSubmit={handleSingleSubmit} className="flex flex-col gap-3 flex-1">
+                    <input 
+                      type="text" 
+                      placeholder="Documento" 
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                      value={docEst} onChange={e => setDocEst(e.target.value)} required 
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Nombres" 
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                      value={nomEst} onChange={e => setNomEst(e.target.value)} required 
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Apellidos" 
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                      value={apeEst} onChange={e => setApeEst(e.target.value)} required 
+                    />
+                    <select 
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none text-slate-700"
+                      value={gradoEst} onChange={e => setGradoEst(e.target.value)} required
+                    >
+                      <option value="" disabled>Seleccione Grado</option>
+                      {grados.map(g => (
+                        <option key={g.id_grado} value={g.id_grado}>{g.nombre_grado}</option>
+                      ))}
+                    </select>
+                    <select 
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none text-slate-700"
+                      value={jorEst} onChange={e => setJorEst(e.target.value)} required
+                    >
+                      <option value="Mañana">Mañana</option>
+                      <option value="Tarde">Tarde</option>
+                      <option value="Noche">Noche</option>
+                      <option value="Sábado">Sábado</option>
+                    </select>
+                    <button type="submit" className="mt-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl shadow-md transition-colors w-full">
+                      Crear Estudiante
+                    </button>
+                  </form>
                 </div>
               </div>
 

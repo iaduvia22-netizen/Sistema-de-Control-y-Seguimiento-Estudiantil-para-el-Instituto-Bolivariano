@@ -537,10 +537,9 @@ class StateManager {
   }
 
   // Nuevos métodos de Autenticación e Importación
-  loginAcudiente(credencial: string): Usuario | null {
+  loginAcudiente(documento: string, pin: string): Usuario | null {
     const estudiante = this.getEstudiantes().find(e => 
-      e.codigo_acceso === credencial || 
-      `${e.nombres} ${e.apellidos}`.toLowerCase() === credencial.toLowerCase()
+      e.numero_documento === documento && e.codigo_acceso === pin
     );
 
     if (!estudiante) return null;
@@ -550,6 +549,47 @@ class StateManager {
 
     const acudiente = this.getUsuarios().find(u => u.id_usuario === relacion.id_acudiente && u.rol_id === 'acudiente');
     return acudiente || null;
+  }
+
+  crearEstudianteIndividual(datos: { documento: string; nombres: string; apellidos: string; grado_id: string; jornada: string }, idCoordinador: string): { estudiante: Estudiante, pin: string } | null {
+    const actuales = this.getEstudiantes();
+    
+    // Validar duplicado
+    const duplicado = actuales.some(e => e.numero_documento === datos.documento);
+    if (duplicado) return null;
+
+    const nuevoPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const nuevoEstudiante: Estudiante = {
+      id_estudiante: `EST-${Math.floor(1000 + Math.random() * 9000)}`,
+      tipo_documento: 'TI',
+      numero_documento: datos.documento,
+      nombres: datos.nombres,
+      apellidos: datos.apellidos,
+      fecha_nacimiento: '2010-01-01',
+      grado_id: datos.grado_id || 'GRADO-11A',
+      jornada: datos.jornada || 'Mañana',
+      estado: 'Activo',
+      fecha_ingreso: new Date().toISOString().split('T')[0],
+      codigo_acceso: nuevoPin
+    };
+
+    this.setStorageItem('estudiantes', [...actuales, nuevoEstudiante]);
+
+    const coordinador = this.getUsuarios().find(u => u.id_usuario === idCoordinador);
+    if (coordinador) {
+      this.addAuditLog(
+        coordinador.id_usuario,
+        `${coordinador.nombres} ${coordinador.apellidos}`,
+        coordinador.rol_id,
+        'Crear Estudiante',
+        'Estudiantes',
+        `Se creó manualmente al estudiante ${datos.nombres} con documento ${datos.documento}.`,
+        '127.0.0.1',
+        'Plataforma Web'
+      );
+    }
+
+    return { estudiante: nuevoEstudiante, pin: nuevoPin };
   }
 
   importarEstudiantesCSV(csvString: string, idCoordinador: string): number {

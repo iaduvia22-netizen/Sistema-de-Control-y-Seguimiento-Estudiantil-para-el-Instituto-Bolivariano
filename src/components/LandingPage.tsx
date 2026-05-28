@@ -3,14 +3,15 @@ import { Shield, BookOpen, Clock, AlertTriangle, ChevronRight, UserCheck, Smartp
 import { db } from '../data';
 
 interface LandingPageProps {
-  onLogin: (data: { tipo: 'personal' | 'acudiente'; credencial: string }) => void;
+  onLogin: (data: { tipo: 'personal'; credencial: string } | { tipo: 'acudiente'; documento: string; pin: string }) => void;
 }
 
 export default function LandingPage({ onLogin }: LandingPageProps) {
   const [loginType, setLoginType] = useState<'personal' | 'acudiente'>('personal');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [acudienteCode, setAcudienteCode] = useState('');
+  const [acudienteDoc, setAcudienteDoc] = useState('');
+  const [acudientePin, setAcudientePin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const usuarios = db.getUsuarios();
@@ -25,11 +26,11 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
         setErrorMsg('Credenciales inválidas. Por favor verifique.');
       }
     } else {
-      if (!acudienteCode.trim()) {
-        setErrorMsg('Por favor ingrese el código o nombre.');
+      if (!acudienteDoc.trim() || !acudientePin.trim()) {
+        setErrorMsg('Por favor ingrese documento y PIN.');
         return;
       }
-      onLogin({ tipo: 'acudiente', credencial: acudienteCode.trim() });
+      onLogin({ tipo: 'acudiente', documento: acudienteDoc.trim(), pin: acudientePin.trim() });
     }
   };
 
@@ -148,7 +149,7 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                 ) : (
                   <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-slate-200 block">Código o Nombre del Estudiante</label>
+                      <label className="text-sm font-semibold text-slate-200 block">Número de Documento del Estudiante</label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                           <UserCheck className="w-5 h-5 text-slate-400" />
@@ -156,10 +157,27 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                         <input
                           type="text"
                           required
-                          value={acudienteCode}
-                          onChange={e => setAcudienteCode(e.target.value)}
+                          value={acudienteDoc}
+                          onChange={e => setAcudienteDoc(e.target.value)}
                           className="w-full pl-12 pr-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:ring-2 focus:ring-brand-400 focus:border-transparent focus:bg-black/30 transition-all text-white placeholder-slate-500 font-medium"
-                          placeholder="Ej. 1234 o Nombre Completo"
+                          placeholder="Ej. 1085123456"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-200 block">PIN de Acceso (4 dígitos)</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Key className="w-5 h-5 text-slate-400" />
+                        </div>
+                        <input
+                          type="password"
+                          required
+                          maxLength={4}
+                          value={acudientePin}
+                          onChange={e => setAcudientePin(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:ring-2 focus:ring-brand-400 focus:border-transparent focus:bg-black/30 transition-all text-white placeholder-slate-500 font-medium"
+                          placeholder="••••"
                         />
                       </div>
                     </div>
@@ -188,7 +206,7 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                 <div className="flex flex-wrap justify-center gap-2">
                   <button onClick={() => { setLoginType('personal'); setEmail('andres.bustamante@ib.edu.co'); setPassword('admin123'); }} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold transition-colors border border-white/5">Coordinador</button>
                   <button onClick={() => { setLoginType('personal'); setEmail('martha.rodriguez@ib.edu.co'); setPassword('docente123'); }} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold transition-colors border border-white/5">Docente</button>
-                  <button onClick={() => { setLoginType('acudiente'); setAcudienteCode('1234'); }} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold transition-colors border border-white/5">Acudiente</button>
+                  <button onClick={() => { setLoginType('acudiente'); setAcudienteDoc('1085123456'); setAcudientePin('1234'); }} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold transition-colors border border-white/5">Acudiente</button>
                 </div>
               </div>
 
