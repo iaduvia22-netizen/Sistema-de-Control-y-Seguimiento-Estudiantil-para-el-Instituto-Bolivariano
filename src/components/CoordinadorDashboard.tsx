@@ -22,6 +22,7 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [confirmaciones, setConfirmaciones] = useState<Confirmacion[]>([]);
   const [auditorias, setAuditorias] = useState<Auditoria[]>([]);
+  const [config, setConfig] = useState<{ hora_limite_manana: string; hora_limite_tarde: string }>({ hora_limite_manana: '08:00', hora_limite_tarde: '14:00' });
 
   const [isDragging, setIsDragging] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
@@ -106,7 +107,14 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
     setNotificaciones(db.getNotificaciones());
     setConfirmaciones(db.getConfirmaciones());
     setAuditorias(db.getAuditoria());
+    setConfig(db.getConfiguracion());
   }, [refreshKey]);
+
+  const handleConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newConfig = { ...config, [e.target.name]: e.target.value };
+    setConfig(newConfig);
+    db.setConfiguracion(newConfig);
+  };
 
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);
@@ -250,6 +258,7 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
         <div className="max-w-7xl mx-auto px-6 flex gap-4 overflow-x-auto scrollbar-none">
           {[
             { id: 'dashboard', icon: '📊', label: 'Panel Global' },
+            { id: 'cursos', icon: '🏫', label: 'Control de Cursos' },
             { id: 'kiosco', icon: '⚡', label: 'Kiosco' },
             { id: 'estudiantes', icon: '👥', label: 'Matrículas' },
             { id: 'observaciones', icon: '📋', label: 'Libro Convivencial' },
@@ -351,9 +360,84 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
           </div>
         )}
 
+        {/* TAB CURSOS */}
+        {activeTab === 'cursos' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <h2 className="text-2xl font-black text-slate-900">Control de Cursos</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {grados.map(grado => {
+                const cursoAsistencias = asistencias.filter(a => a.id_grado === grado.id_grado);
+                const rate = calculateAttendanceRate(cursoAsistencias);
+                const total = cursoAsistencias.length;
+                return (
+                  <div key={grado.id_grado} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-lg transition-all">
+                    <div className="mb-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="px-3 py-1 bg-brand-100 text-brand-800 text-[10px] font-black uppercase tracking-widest rounded-lg border border-brand-200">
+                          {grado.jornada}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">{grado.id_grado}</span>
+                      </div>
+                      <h4 className="font-bold text-slate-900 text-xl">{grado.nombre_grado}</h4>
+                      <p className="text-xs text-slate-600 mt-1">Grupo {grado.grupo}</p>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Director de Grupo</label>
+                      <select 
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none text-slate-700"
+                        value={grado.director_grupo_id}
+                        onChange={(e) => {
+                          db.delegarCurso(grado.id_grado, e.target.value);
+                          handleRefresh();
+                        }}
+                      >
+                        <option value="">Sin Asignar</option>
+                        {usuarios.filter(u => u.rol_id === 'docente').map(docente => (
+                          <option key={docente.id_usuario} value={docente.id_usuario}>
+                            {docente.nombres} {docente.apellidos}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100">
+                      <div className="flex justify-between text-xs font-bold mb-1">
+                        <span className="text-slate-700">Asistencia Global</span>
+                        <span className="text-brand-600">{rate}%</span>
+                      </div>
+                      <div className="h-3 bg-slate-100 rounded-full overflow-hidden mb-2">
+                        <div className="h-full bg-brand-500 rounded-full transition-all duration-1000" style={{ width: `${rate}%` }} />
+                      </div>
+                      <p className="text-[10px] text-slate-400 text-right">{total} registros</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* TAB KIOSCO */}
         {activeTab === 'kiosco' && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in zoom-in-95 duration-300 pb-12">
+            
+            <div className="w-full max-w-2xl bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mb-8 flex justify-between items-center gap-4">
+              <div>
+                <h3 className="font-black text-slate-900">Configuración de Torniquete</h3>
+                <p className="text-xs text-slate-500">Ajuste las horas límite para considerar retardo (Tarde)</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Límite Mañana</label>
+                  <input type="time" name="hora_limite_manana" value={config.hora_limite_manana} onChange={handleConfigChange} className="p-2 border rounded-lg bg-slate-50 text-sm" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Límite Tarde</label>
+                  <input type="time" name="hora_limite_tarde" value={config.hora_limite_tarde} onChange={handleConfigChange} className="p-2 border rounded-lg bg-slate-50 text-sm" />
+                </div>
+              </div>
+            </div>
             {kioscoResult ? (
               <div className={`w-full max-w-2xl p-12 rounded-3xl text-center shadow-2xl ${
                 kioscoResult.status === 'success' ? 'bg-emerald-500 text-white' : 
@@ -363,9 +447,9 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
                   <>
                     <CheckCircle className="w-24 h-24 mx-auto mb-6 opacity-90" />
                     <h2 className="text-4xl font-black mb-2">{kioscoResult.status === 'success' ? 'ENTRADA REGISTRADA' : 'YA INGRESÓ HOY'}</h2>
-                    <p className="text-3xl font-bold opacity-100">{kioscoResult.estudiante.nombres} {kioscoResult.estudiante.apellidos}</p>
+                    <p className="text-3xl font-bold opacity-100">{`${kioscoResult.estudiante.nombres || ''} ${kioscoResult.estudiante.apellidos || ''}`}</p>
                     <p className="text-xl opacity-90 mt-2 font-medium">
-                      {grados.find(g => g.id_grado === kioscoResult.estudiante?.grado_id)?.nombre_grado} • Jornada {kioscoResult.estudiante.jornada}
+                      {`${grados.find(g => g.id_grado === kioscoResult.estudiante?.grado_id)?.nombre_grado || 'Grado no asignado'} • Jornada ${kioscoResult.estudiante.jornada || ''}`}
                     </p>
                   </>
                 ) : (
@@ -542,9 +626,10 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
                   <table className="w-full text-left text-xs divide-y divide-slate-100">
                     <thead className="bg-white sticky top-0 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                       <tr>
-                        <th className="p-4">Estudiante</th>
-                        <th className="p-4">Documento</th>
-                        <th className="p-4">Curso</th>
+                        <th className="p-4">Nombre Completo</th>
+                        <th className="p-4">Documento/ID</th>
+                        <th className="p-4">Ciclo (Grado)</th>
+                        <th className="p-4">Jornada</th>
                         <th className="p-4">Estado</th>
                       </tr>
                     </thead>
@@ -553,13 +638,18 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
                         <tr key={est.id_estudiante} className="hover:bg-slate-50 transition-colors">
                           <td className="p-4">
                             <p className="font-bold text-slate-900 text-sm">{est.nombres} {est.apellidos}</p>
-                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">{est.id_estudiante}</p>
                           </td>
-                          <td className="p-4 font-mono text-slate-500">{est.tipo_documento} {est.numero_documento}</td>
+                          <td className="p-4 font-mono text-slate-500 text-xs">
+                            <p>{est.tipo_documento} {est.numero_documento}</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">{est.id_estudiante}</p>
+                          </td>
                           <td className="p-4">
                             <span className="px-2 py-1 bg-slate-100 text-slate-700 font-bold rounded text-[10px]">
                               {grados.find(g => g.id_grado === est.grado_id)?.nombre_grado || est.grado_id}
                             </span>
+                          </td>
+                          <td className="p-4 text-xs font-bold text-slate-600">
+                            {est.jornada || grados.find(g => g.id_grado === est.grado_id)?.jornada || 'N/A'}
                           </td>
                           <td className="p-4">
                             <span className={`px-2 py-1 rounded text-[10px] font-bold ${est.estado === 'Activo' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
@@ -580,30 +670,61 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
         {activeTab === 'observaciones' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <h2 className="text-2xl font-black text-slate-900">Libro Convivencial</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {observaciones.map(obs => (
-                <div key={obs.id_observacion} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-lg transition-all">
-                  <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border ${
-                        obs.nivel_gravedad === 'Crítico' ? 'bg-rose-100 text-rose-800 border-rose-200' : 
-                        obs.nivel_gravedad === 'Alto' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                        obs.nivel_gravedad === 'Medio' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                        'bg-slate-100 text-slate-600 border-slate-200'
-                      }`}>
-                        {obs.nivel_gravedad}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono">{obs.fecha_observacion}</span>
-                    </div>
-                    <h4 className="font-bold text-slate-900 mb-2">{obs.categoria}</h4>
-                    <p className="text-xs text-slate-600 line-clamp-3 italic mb-4">"{obs.descripcion}"</p>
-                  </div>
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-[10px] font-semibold text-slate-500">
-                    <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> {obs.tipo_observacion}</span>
-                    <span>Docente: {obs.registrado_por.split(' ')[0]}</span>
-                  </div>
-                </div>
-              ))}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full text-left text-xs divide-y divide-slate-100">
+                <thead className="bg-slate-50 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="p-4">Nombre Completo</th>
+                    <th className="p-4">Documento/ID</th>
+                    <th className="p-4">Ciclo (Grado)</th>
+                    <th className="p-4">Jornada</th>
+                    <th className="p-4">Observación</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 font-medium text-slate-800">
+                  {observaciones.map(obs => {
+                    const est = estudiantes.find(e => e.id_estudiante === obs.id_estudiante);
+                    const grado = grados.find(g => g.id_grado === est?.grado_id);
+                    return (
+                      <tr key={obs.id_observacion} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4">
+                          <p className="font-bold text-slate-900 text-sm">{est ? `${est.nombres} ${est.apellidos}` : 'Desconocido'}</p>
+                        </td>
+                        <td className="p-4 font-mono text-slate-500 text-xs">
+                          <p>{est ? `${est.tipo_documento} ${est.numero_documento}` : 'N/A'}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{obs.id_estudiante}</p>
+                        </td>
+                        <td className="p-4">
+                          <span className="px-2 py-1 bg-slate-100 text-slate-700 font-bold rounded text-[10px]">
+                            {grado?.nombre_grado || est?.grado_id || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-xs font-bold text-slate-600">
+                          {est?.jornada || grado?.jornada || 'N/A'}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded border ${
+                              obs.nivel_gravedad === 'Crítico' ? 'bg-rose-100 text-rose-800 border-rose-200' : 
+                              obs.nivel_gravedad === 'Alto' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                              obs.nivel_gravedad === 'Medio' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                              'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}>
+                              {obs.nivel_gravedad}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">{obs.fecha_observacion}</span>
+                          </div>
+                          <h4 className="font-bold text-slate-900 text-xs">{obs.categoria}</h4>
+                          <p className="text-[10px] text-slate-600 line-clamp-2 italic mb-1">"{obs.descripcion}"</p>
+                          <div className="text-[9px] font-semibold text-slate-500">
+                            Por: {obs.registrado_por}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -651,27 +772,39 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
                 <thead className="bg-slate-50 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                   <tr>
                     <th className="p-4">Acción</th>
-                    <th className="p-4">Usuario</th>
+                    <th className="p-4">Nombre Completo</th>
+                    <th className="p-4">Documento/ID</th>
+                    <th className="p-4">Ciclo (Grado)</th>
+                    <th className="p-4">Jornada</th>
                     <th className="p-4">Detalle</th>
                     <th className="p-4">Fecha/IP</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 font-medium text-slate-800">
-                  {auditorias.map(log => (
-                    <tr key={log.id_auditoria} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-4">
-                        <span className="px-2 py-1 bg-brand-50 text-brand-700 font-bold rounded text-[10px]">{log.accion}</span>
-                      </td>
-                      <td className="p-4">
-                        <p className="font-bold text-slate-900">{log.usuario_nombre}</p>
-                        <p className="text-[10px] text-slate-400 uppercase">{log.usuario_rol}</p>
-                      </td>
-                      <td className="p-4 max-w-sm text-xs text-slate-600">{log.descripcion}</td>
-                      <td className="p-4 font-mono text-[10px] text-slate-500">
-                        {new Date(log.fecha_accion).toLocaleString()}<br/>{log.ip_usuario}
-                      </td>
-                    </tr>
-                  ))}
+                  {auditorias.map(log => {
+                    const usr = usuarios.find(u => u.id_usuario === log.id_usuario);
+                    return (
+                      <tr key={log.id_auditoria} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4">
+                          <span className="px-2 py-1 bg-brand-50 text-brand-700 font-bold rounded text-[10px]">{log.accion}</span>
+                        </td>
+                        <td className="p-4">
+                          <p className="font-bold text-slate-900">{usr ? `${usr.nombres} ${usr.apellidos}` : log.usuario_nombre}</p>
+                          <p className="text-[10px] text-slate-400 uppercase">{log.usuario_rol}</p>
+                        </td>
+                        <td className="p-4 font-mono text-slate-500 text-xs">
+                          <p>{usr ? `${usr.tipo_documento} ${usr.numero_documento}` : 'N/A'}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{log.id_usuario}</p>
+                        </td>
+                        <td className="p-4 text-xs font-bold text-slate-600">-</td>
+                        <td className="p-4 text-xs font-bold text-slate-600">-</td>
+                        <td className="p-4 max-w-sm text-xs text-slate-600">{log.descripcion}</td>
+                        <td className="p-4 font-mono text-[10px] text-slate-500">
+                          {new Date(log.fecha_accion).toLocaleString()}<br/>{log.ip_usuario}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -37,8 +37,10 @@ export default function DocenteDashboard({ usuario, onLogout }: DocenteDashboard
 
   useEffect(() => {
     const todosGrados = db.getGrados();
-    setGrados(todosGrados);
-  }, []);
+    // Filtrar para que el docente solo vea los cursos que le han delegado
+    const misGrados = todosGrados.filter(g => g.director_grupo_id === usuario.id_usuario);
+    setGrados(misGrados);
+  }, [usuario]);
 
   useEffect(() => {
     if (selectedGradoId) {

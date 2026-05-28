@@ -24,6 +24,7 @@ export default function AcudienteDashboard({ usuario, onLogout }: AcudienteDashb
   const [signComment, setSignComment] = useState<string>('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'resumen' | 'libro'>('resumen');
 
   useEffect(() => {
     const relaciones = db.getRelaciones().filter(r => r.id_acudiente === usuario.id_usuario);
@@ -140,7 +141,29 @@ export default function AcudienteDashboard({ usuario, onLogout }: AcudienteDashb
           </div>
         )}
 
+        {/* TABS DE SECCIÓN (Resumen / Libro) */}
         {currentChild && (
+          <div className="flex gap-4 border-b border-slate-200 mb-6 px-1">
+            <button
+              onClick={() => setActiveTab('resumen')}
+              className={`py-2 px-4 font-bold text-sm border-b-2 transition-colors -mb-[1px] ${
+                activeTab === 'resumen' ? 'border-brand-600 text-brand-900' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Resumen y Asistencia
+            </button>
+            <button
+              onClick={() => setActiveTab('libro')}
+              className={`py-2 px-4 font-bold text-sm border-b-2 transition-colors -mb-[1px] ${
+                activeTab === 'libro' ? 'border-brand-600 text-brand-900' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Libro Convivencial y Firmas
+            </button>
+          </div>
+        )}
+
+        {currentChild && activeTab === 'resumen' && (
           <>
             {/* CABECERA Y SEMÁFORO */}
             <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
@@ -272,6 +295,127 @@ export default function AcudienteDashboard({ usuario, onLogout }: AcudienteDashb
               </div>
             </div>
           </>
+        )}
+
+        {currentChild && activeTab === 'libro' && (
+          <div className="space-y-8 animate-in fade-in">
+            {/* CABECERA Y SEMÁFORO DEL ESTUDIANTE */}
+            <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                <ShieldCheck className="w-48 h-48" />
+              </div>
+              <div className="space-y-2 relative z-10 text-center md:text-left w-full">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 border border-slate-200">
+                  Libro Convivencial
+                </span>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">{currentChild.nombres} {currentChild.apellidos}</h2>
+              </div>
+            </div>
+
+            {/* LISTA DE OBSERVACIONES */}
+            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-6">
+                <FileSignature className="w-5 h-5 text-brand-600" />
+                <h3 className="text-xl font-black text-slate-900">Registro de Observaciones</h3>
+              </div>
+              <div className="space-y-4">
+                {childObservaciones.length === 0 ? (
+                  <p className="text-slate-500 font-semibold text-sm">No hay observaciones registradas.</p>
+                ) : (
+                  childObservaciones.map(obs => (
+                    <div key={obs.id_observacion} className={`p-4 rounded-2xl border ${
+                      obs.nivel_gravedad === 'Crítico' || obs.nivel_gravedad === 'Alto' ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {obs.nivel_gravedad === 'Crítico' || obs.nivel_gravedad === 'Alto' ? 
+                            <AlertTriangle className="w-5 h-5 text-rose-500" /> : 
+                            <Info className="w-5 h-5 text-indigo-500" />
+                          }
+                          <span className="font-bold">{obs.tipo_observacion} - {obs.nivel_gravedad}</span>
+                        </div>
+                        <span className="text-xs font-bold opacity-70">{obs.fecha_observacion}</span>
+                      </div>
+                      <p className="text-sm opacity-80 font-medium ml-7">{obs.descripcion}</p>
+                      <div className="mt-3 pt-3 border-t border-black/5 text-xs opacity-60 font-semibold flex items-center justify-between ml-7">
+                        <span>Registrado por: {obs.registrado_por}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* SECCIÓN DE FIRMAS */}
+            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-6">
+                <ShieldCheck className="w-5 h-5 text-brand-600" />
+                <h3 className="text-xl font-black text-slate-900">Firmas Pendientes e Historial</h3>
+              </div>
+              
+              <div className="space-y-6">
+                {notisPendientes.length === 0 ? (
+                  <p className="text-slate-500 font-semibold text-sm">No tienes firmas pendientes.</p>
+                ) : (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-black text-rose-600 uppercase tracking-widest">Requiere Firma Inmediata</h4>
+                    {notisPendientes.map(noti => (
+                      <div key={noti.id_notificacion} className="bg-amber-50 p-4 rounded-2xl border border-amber-200">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h5 className="font-bold text-amber-900">{noti.asunto}</h5>
+                            <p className="text-xs text-amber-700/80 mt-1">{noti.mensaje}</p>
+                            <p className="text-xs font-semibold text-amber-600 mt-2">Fecha: {noti.fecha_envio}</p>
+                          </div>
+                        </div>
+                        {signNotiId === noti.id_notificacion ? (
+                          <form onSubmit={handleSignSubmit} className="flex gap-2 mt-4">
+                            <input 
+                              type="text" 
+                              required 
+                              placeholder="Comentario de enterado..." 
+                              value={signComment} 
+                              onChange={e => setSignComment(e.target.value)}
+                              className="w-full text-xs p-2 rounded-lg bg-white border border-amber-300 placeholder-amber-400 focus:outline-none focus:border-amber-500"
+                            />
+                            <button type="submit" className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition-colors">
+                              Firmar
+                            </button>
+                          </form>
+                        ) : (
+                          <button 
+                            onClick={() => setSignNotiId(noti.id_notificacion)} 
+                            className="mt-4 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition-colors shadow-sm"
+                          >
+                            Firmar Documento
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {confirmaciones.length > 0 && (
+                  <div className="space-y-4 mt-8 pt-8 border-t border-slate-100">
+                    <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest">Historial de Firmas</h4>
+                    {confirmaciones.map(conf => {
+                      const noti = parentNotificaciones.find(n => n.id_notificacion === conf.id_notificacion);
+                      return (
+                        <div key={conf.id_confirmacion} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-start gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
+                          <div>
+                            <h5 className="font-bold text-slate-700">{noti?.asunto || 'Documento firmado'}</h5>
+                            <p className="text-xs text-slate-500 mt-1">Comentario: "{conf.comentario_acudiente}"</p>
+                            <p className="text-[10px] font-bold text-slate-400 mt-2">Firmado el: {conf.fecha_confirmacion}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </main>
 

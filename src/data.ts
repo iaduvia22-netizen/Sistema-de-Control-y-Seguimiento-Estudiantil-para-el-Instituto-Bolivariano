@@ -533,10 +533,22 @@ class StateManager {
   }
 
   getAuditoria(): Auditoria[] {
-    return this.getStorageItem<Auditoria[]>('auditoria', INITIAL_AUDITORIA);
+    return this.getStorageItem<Auditoria[]>('auditoria', []);
   }
 
-  // Nuevos métodos de Autenticación e Importación
+  // Configuración
+  getConfiguracion(): { hora_limite_manana: string; hora_limite_tarde: string } {
+    return this.getStorageItem<{ hora_limite_manana: string; hora_limite_tarde: string }>('configuracion', {
+      hora_limite_manana: '08:00',
+      hora_limite_tarde: '14:00'
+    });
+  }
+
+  setConfiguracion(config: { hora_limite_manana: string; hora_limite_tarde: string }) {
+    this.setStorageItem('configuracion', config);
+  }
+
+  // Métodos de Autenticación e Importación
   loginAcudiente(documento: string, pin: string): Usuario | null {
     const estudiante = this.getEstudiantes().find(e => 
       e.numero_documento === documento && e.codigo_acceso === pin
@@ -609,6 +621,16 @@ class StateManager {
       return { status: 'error', message: `Entrada Duplicada: ${estudiante.nombres} ya ingresó hoy.`, estudiante };
     }
 
+    const config = this.getConfiguracion();
+    const horaActual = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    let estadoIngreso: 'Presente' | 'Tarde' = 'Presente';
+
+    if (estudiante.jornada === 'Mañana' && horaActual > config.hora_limite_manana) {
+      estadoIngreso = 'Tarde';
+    } else if (estudiante.jornada === 'Tarde' && horaActual > config.hora_limite_tarde) {
+      estadoIngreso = 'Tarde';
+    }
+
     const nuevaAsistencia: Asistencia = {
       id_asistencia: `ASI-${Math.floor(10000 + Math.random() * 90000)}`,
       id_estudiante: estudiante.id_estudiante,
@@ -616,8 +638,8 @@ class StateManager {
       id_grado: estudiante.grado_id,
       fecha: hoy,
       hora_registro: new Date().toLocaleTimeString('es-CO', { hour12: false }),
-      estado_asistencia: 'Presente',
-      observacion: 'Ingreso por Torniquete Principal',
+      estado_asistencia: estadoIngreso,
+      observacion: estadoIngreso === 'Tarde' ? 'Ingreso con retardo por Torniquete' : 'Ingreso por Torniquete Principal',
       registrado_por: 'Kiosco Automático',
       fecha_creacion: new Date().toISOString()
     };
@@ -625,6 +647,16 @@ class StateManager {
     this.setStorageItem('asistencias', [...asistencias, nuevaAsistencia]);
 
     return { status: 'success', message: 'ENTRADA REGISTRADA', estudiante };
+  }
+
+  delegarCurso(idGrado: string, idDocente: string): boolean {
+    const grados = this.getGrados();
+    const gradoIndex = grados.findIndex(g => g.id_grado === idGrado);
+    if (gradoIndex === -1) return false;
+
+    grados[gradoIndex].director_grupo_id = idDocente;
+    this.setStorageItem('grados', grados);
+    return true;
   }
 
   importarEstudiantesCSV(csvString: string, idCoordinador: string): number {

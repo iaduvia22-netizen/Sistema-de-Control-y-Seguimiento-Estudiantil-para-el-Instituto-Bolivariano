@@ -149,3 +149,9 @@ export interface Auditoria {
   ip_usuario: string;
   dispositivo: string;
 }
+
+// 11. Configuración del Sistema
+export interface Configuracion {
+  hora_limite_manana: string; // HH:mm
+  hora_limite_tarde: string;  // HH:mm
+}
