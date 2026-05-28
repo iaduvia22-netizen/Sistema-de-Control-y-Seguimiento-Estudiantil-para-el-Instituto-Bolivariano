@@ -1,0 +1,6 @@
+{
+  "name": "Sistema de Control y Seguimiento Estudiantil",
+  "description": "Plataforma institucional del Instituto Bolivariano para la gestión inteligente de asistencia, observaciones convivenciales, notificaciones y auditoría en tiempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
