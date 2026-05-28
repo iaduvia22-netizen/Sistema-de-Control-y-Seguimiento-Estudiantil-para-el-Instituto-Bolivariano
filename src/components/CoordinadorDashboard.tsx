@@ -353,47 +353,92 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
 
         {/* TAB KIOSCO */}
         {activeTab === 'kiosco' && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in zoom-in-95 duration-300">
+          <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in zoom-in-95 duration-300 pb-12">
             {kioscoResult ? (
               <div className={`w-full max-w-2xl p-12 rounded-3xl text-center shadow-2xl ${
-                kioscoResult.status === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+                kioscoResult.status === 'success' ? 'bg-emerald-500 text-white' : 
+                (kioscoResult.estudiante ? 'bg-amber-500 text-white' : 'bg-slate-800 text-white')
               }`}>
-                {kioscoResult.status === 'success' ? (
+                {kioscoResult.estudiante ? (
                   <>
                     <CheckCircle className="w-24 h-24 mx-auto mb-6 opacity-90" />
-                    <h2 className="text-4xl font-black mb-2">{kioscoResult.message}</h2>
-                    <p className="text-2xl font-bold opacity-90">{kioscoResult.estudiante?.nombres} {kioscoResult.estudiante?.apellidos}</p>
-                    <p className="text-lg opacity-75 mt-2">
-                      {grados.find(g => g.id_grado === kioscoResult.estudiante?.grado_id)?.nombre_grado} • {kioscoResult.estudiante?.jornada}
+                    <h2 className="text-4xl font-black mb-2">{kioscoResult.status === 'success' ? 'ENTRADA REGISTRADA' : 'YA INGRESÓ HOY'}</h2>
+                    <p className="text-3xl font-bold opacity-100">{kioscoResult.estudiante.nombres} {kioscoResult.estudiante.apellidos}</p>
+                    <p className="text-xl opacity-90 mt-2 font-medium">
+                      {grados.find(g => g.id_grado === kioscoResult.estudiante?.grado_id)?.nombre_grado} • Jornada {kioscoResult.estudiante.jornada}
                     </p>
                   </>
                 ) : (
                   <>
-                    <AlertTriangle className="w-24 h-24 mx-auto mb-6 opacity-90" />
-                    <h2 className="text-4xl font-black mb-2">ATENCIÓN</h2>
-                    <p className="text-xl font-bold opacity-90">{kioscoResult.message}</p>
+                    <AlertTriangle className="w-24 h-24 mx-auto mb-6 opacity-90 text-rose-400" />
+                    <h2 className="text-3xl font-black mb-2 text-rose-400">Estudiante no encontrado</h2>
+                    <p className="text-lg font-medium opacity-90 text-slate-300">Verifique el número digitado e intente de nuevo.</p>
                   </>
                 )}
               </div>
             ) : (
-              <div className="w-full max-w-2xl bg-white p-12 rounded-3xl shadow-xl border border-slate-200 text-center">
-                <div className="w-20 h-20 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Shield className="w-10 h-10" />
+              <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center mt-8">
+                <div className="w-16 h-16 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8" />
                 </div>
-                <h2 className="text-3xl font-black text-slate-900 mb-2">Torniquete Virtual</h2>
-                <p className="text-slate-500 mb-8">Escanee el carné o ingrese el documento del estudiante</p>
-                <form onSubmit={handleKioscoSubmit}>
+                <h2 className="text-2xl font-black text-slate-900 mb-1">Torniquete Virtual</h2>
+                <p className="text-sm text-slate-500 mb-6">Digite el documento del estudiante</p>
+                <form onSubmit={handleKioscoSubmit} className="mb-6">
                   <input
                     ref={kioscoInputRef}
                     type="text"
                     value={kioscoInput}
                     onChange={(e) => setKioscoInput(e.target.value)}
-                    placeholder="Documento o ID..."
-                    className="w-full text-center text-4xl font-black p-6 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 outline-none transition-all placeholder:text-slate-300"
+                    placeholder="ID..."
+                    className="w-full text-center text-4xl font-black p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 outline-none transition-all placeholder:text-slate-300"
                     autoFocus
                   />
                   <button type="submit" className="hidden">Enviar</button>
                 </form>
+                
+                {/* TECLADO NUMÉRICO TÁCTIL */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => {
+                        setKioscoInput(prev => prev + num);
+                        kioscoInputRef.current?.focus();
+                      }}
+                      className="py-4 text-2xl font-black text-slate-700 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 border border-slate-200 rounded-2xl transition-colors"
+                    >
+                      {num}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKioscoInput(prev => prev.slice(0, -1));
+                      kioscoInputRef.current?.focus();
+                    }}
+                    className="py-4 text-xl font-black text-rose-500 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-200 rounded-2xl transition-colors flex items-center justify-center"
+                  >
+                    Borrar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKioscoInput(prev => prev + '0');
+                      kioscoInputRef.current?.focus();
+                    }}
+                    className="py-4 text-2xl font-black text-slate-700 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 border border-slate-200 rounded-2xl transition-colors"
+                  >
+                    0
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleKioscoSubmit}
+                    className="py-4 text-xl font-black text-white bg-brand-500 hover:bg-brand-600 active:bg-brand-700 rounded-2xl transition-colors shadow-lg shadow-brand-500/30 flex items-center justify-center"
+                  >
+                    Entrar
+                  </button>
+                </div>
               </div>
             )}
           </div>
