@@ -20,6 +20,7 @@ export default function DocenteDashboard({ usuario, onLogout }: DocenteDashboard
   const [asistenciaTemp, setAsistenciaTemp] = useState<Record<string, { 
     estado: EstadoAsistencia; 
     observacion: string;
+    yaIngreso?: boolean;
   }>>({});
 
   const [showObsForm, setShowObsForm] = useState(false);
@@ -46,14 +47,16 @@ export default function DocenteDashboard({ usuario, onLogout }: DocenteDashboard
       setEstudiantes(filtrados);
 
       const hoyStr = new Date().toISOString().substring(0, 10);
-      const asistenciasHoy = db.getAsistencias().filter(a => a.fecha === hoyStr && a.id_grado === selectedGradoId);
+      const asistenciasHoy = db.getAsistencias().filter(a => a.fecha === hoyStr);
 
-      const mapInicial: Record<string, { estado: EstadoAsistencia; observacion: string }> = {};
+      const mapInicial: Record<string, { estado: EstadoAsistencia; observacion: string; yaIngreso?: boolean }> = {};
       filtrados.forEach(est => {
         const existente = asistenciasHoy.find(a => a.id_estudiante === est.id_estudiante);
+        const yaIngreso = existente?.estado_asistencia === 'Presente';
         mapInicial[est.id_estudiante] = {
           estado: existente ? existente.estado_asistencia : 'Presente',
-          observacion: existente ? existente.observacion : ''
+          observacion: existente ? existente.observacion : '',
+          yaIngreso
         };
       });
 
@@ -99,21 +102,26 @@ export default function DocenteDashboard({ usuario, onLogout }: DocenteDashboard
     const hoyStr = new Date().toISOString().substring(0, 10);
     const ahoraStr = new Date().toTimeString().split(' ')[0];
 
-    const nuevasAsistencias: Asistencia[] = estudiantes.map(est => {
-      const temp = asistenciaTemp[est.id_estudiante] || { estado: 'Presente', observacion: '' };
-      return {
-        id_asistencia: `AST-${Math.floor(1000 + Math.random() * 9000)}`,
-        id_estudiante: est.id_estudiante,
-        id_docente: usuario.id_usuario,
-        id_grado: selectedGradoId,
-        fecha: hoyStr,
-        hora_registro: ahoraStr,
-        estado_asistencia: temp.estado,
-        observacion: temp.observacion,
-        registrado_por: `${usuario.nombres} ${usuario.apellidos}`,
-        fecha_creacion: new Date().toISOString()
-      };
-    });
+    const nuevasAsistencias: Asistencia[] = estudiantes
+      .filter(est => {
+        const temp = asistenciaTemp[est.id_estudiante];
+        return !(temp?.yaIngreso); // no re-guardamos los que ya entraron por portería
+      })
+      .map(est => {
+        const temp = asistenciaTemp[est.id_estudiante] || { estado: 'Presente', observacion: '' };
+        return {
+          id_asistencia: `AST-${Math.floor(1000 + Math.random() * 9000)}`,
+          id_estudiante: est.id_estudiante,
+          id_docente: usuario.id_usuario,
+          id_grado: selectedGradoId,
+          fecha: hoyStr,
+          hora_registro: ahoraStr,
+          estado_asistencia: temp.estado,
+          observacion: temp.observacion,
+          registrado_por: `${usuario.nombres} ${usuario.apellidos}`,
+          fecha_creacion: new Date().toISOString()
+        };
+      });
 
     db.saveAsistencias(nuevasAsistencias, usuario);
     setSuccessBanner('¡Planilla de asistencia guardada correctamente! Acudientes notificados.');
@@ -299,8 +307,13 @@ export default function DocenteDashboard({ usuario, onLogout }: DocenteDashboard
                             {iniciales.toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 truncate">
+                            <p className="font-bold text-slate-900 truncate flex items-center gap-2">
                               {est.nombres} {est.apellidos}
+                              {temp.yaIngreso && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded-md" title="Ingresó por Portería">
+                                  <CheckCircle className="w-3 h-3" /> Kiosco
+                                </span>
+                              )}
                             </p>
                             <p className="text-[11px] font-semibold text-slate-400">
                               ID: {est.numero_documento}
@@ -310,21 +323,27 @@ export default function DocenteDashboard({ usuario, onLogout }: DocenteDashboard
 
                         {/* SELECTOR DE ESTADOS */}
                         <div className="flex-1 flex flex-wrap gap-2 lg:justify-center">
-                          {(['Presente', 'Ausente', 'Tarde', 'Excusado', 'Retirado'] as EstadoAsistencia[]).map(estOp => {
-                            const esSeleccionado = temp.estado === estOp;
-                            return (
-                              <button
-                                key={estOp}
-                                type="button"
-                                onClick={() => handleEstadoChange(est.id_estudiante, estOp)}
-                                className={`px-4 py-2 text-[11px] font-bold rounded-xl uppercase tracking-wider transition-all duration-200 ${
-                                  esSeleccionado ? getBadgeClass(estOp) : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                }`}
-                              >
-                                {estOp}
-                              </button>
-                            );
-                          })}
+                          {temp.yaIngreso ? (
+                            <div className="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 w-full lg:w-auto justify-center">
+                              <CheckCircle className="w-4 h-4" /> Ya ingresó por Portería
+                            </div>
+                          ) : (
+                            (['Presente', 'Ausente', 'Tarde', 'Excusado', 'Retirado'] as EstadoAsistencia[]).map(estOp => {
+                              const esSeleccionado = temp.estado === estOp;
+                              return (
+                                <button
+                                  key={estOp}
+                                  type="button"
+                                  onClick={() => handleEstadoChange(est.id_estudiante, estOp)}
+                                  className={`px-4 py-2 text-[11px] font-bold rounded-xl uppercase tracking-wider transition-all duration-200 ${
+                                    esSeleccionado ? getBadgeClass(estOp) : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  {estOp}
+                                </button>
+                              );
+                            })
+                          )}
                         </div>
 
                         {/* INPUT NOTA & MENU */}

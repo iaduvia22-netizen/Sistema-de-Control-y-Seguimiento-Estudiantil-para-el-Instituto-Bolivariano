@@ -12,7 +12,7 @@ interface CoordinadorDashboardProps {
 }
 
 export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'estudiantes' | 'observaciones' | 'auditoria' | 'notificaciones'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'kiosco' | 'estudiantes' | 'observaciones' | 'auditoria' | 'notificaciones'>('dashboard');
   
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [grados, setGrados] = useState<Grado[]>([]);
@@ -34,6 +34,39 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
   const [gradoEst, setGradoEst] = useState('');
   const [jorEst, setJorEst] = useState('Mañana');
   
+  const [kioscoInput, setKioscoInput] = useState('');
+  const [kioscoResult, setKioscoResult] = useState<{ status: 'success' | 'error', message: string, estudiante?: Estudiante } | null>(null);
+  const kioscoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (activeTab === 'kiosco') {
+      setTimeout(() => {
+        kioscoInputRef.current?.focus();
+      }, 100);
+    }
+  }, [activeTab]);
+
+  const handleKioscoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kioscoInput.trim()) return;
+    const res = db.registrarEntradaKiosco(kioscoInput.trim(), usuario.id_usuario);
+    setKioscoResult(res);
+    setKioscoInput('');
+    handleRefresh();
+
+    if (res.status === 'success') {
+      setTimeout(() => {
+        setKioscoResult(null);
+        kioscoInputRef.current?.focus();
+      }, 1500);
+    } else {
+      setTimeout(() => {
+        setKioscoResult(null);
+        kioscoInputRef.current?.focus();
+      }, 3000);
+    }
+  };
+
   const [singleStudentSuccess, setSingleStudentSuccess] = useState<{ estudiante: any, pin: string } | null>(null);
 
   const handleSingleSubmit = (e: React.FormEvent) => {
@@ -217,6 +250,7 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
         <div className="max-w-7xl mx-auto px-6 flex gap-4 overflow-x-auto scrollbar-none">
           {[
             { id: 'dashboard', icon: '📊', label: 'Panel Global' },
+            { id: 'kiosco', icon: '⚡', label: 'Kiosco' },
             { id: 'estudiantes', icon: '👥', label: 'Matrículas' },
             { id: 'observaciones', icon: '📋', label: 'Libro Convivencial' },
             { id: 'notificaciones', icon: '✉️', label: 'Firmas' },
@@ -241,7 +275,7 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
         {activeTab === 'dashboard' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* WIDGETS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-lg transition-all">
                 <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4">
                   <Users className="w-6 h-6" />
@@ -269,6 +303,13 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
                 </div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Anotaciones Críticas</p>
                 <h3 className="text-3xl font-black text-rose-600">{observacionCriticaTotal}</h3>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-lg transition-all">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Ingresos Hoy</p>
+                <h3 className="text-3xl font-black text-blue-600">{asistencias.filter(a => a.fecha === new Date().toISOString().split('T')[0] && (a.estado_asistencia === 'Presente' || a.estado_asistencia === 'Tarde')).length} <span className="text-lg text-slate-400 font-medium">/ {totalEst}</span></h3>
               </div>
             </div>
 
@@ -307,6 +348,54 @@ export default function CoordinadorDashboard({ usuario, onLogout }: CoordinadorD
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* TAB KIOSCO */}
+        {activeTab === 'kiosco' && (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in zoom-in-95 duration-300">
+            {kioscoResult ? (
+              <div className={`w-full max-w-2xl p-12 rounded-3xl text-center shadow-2xl ${
+                kioscoResult.status === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+              }`}>
+                {kioscoResult.status === 'success' ? (
+                  <>
+                    <CheckCircle className="w-24 h-24 mx-auto mb-6 opacity-90" />
+                    <h2 className="text-4xl font-black mb-2">{kioscoResult.message}</h2>
+                    <p className="text-2xl font-bold opacity-90">{kioscoResult.estudiante?.nombres} {kioscoResult.estudiante?.apellidos}</p>
+                    <p className="text-lg opacity-75 mt-2">
+                      {grados.find(g => g.id_grado === kioscoResult.estudiante?.grado_id)?.nombre_grado} • {kioscoResult.estudiante?.jornada}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-24 h-24 mx-auto mb-6 opacity-90" />
+                    <h2 className="text-4xl font-black mb-2">ATENCIÓN</h2>
+                    <p className="text-xl font-bold opacity-90">{kioscoResult.message}</p>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="w-full max-w-2xl bg-white p-12 rounded-3xl shadow-xl border border-slate-200 text-center">
+                <div className="w-20 h-20 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Shield className="w-10 h-10" />
+                </div>
+                <h2 className="text-3xl font-black text-slate-900 mb-2">Torniquete Virtual</h2>
+                <p className="text-slate-500 mb-8">Escanee el carné o ingrese el documento del estudiante</p>
+                <form onSubmit={handleKioscoSubmit}>
+                  <input
+                    ref={kioscoInputRef}
+                    type="text"
+                    value={kioscoInput}
+                    onChange={(e) => setKioscoInput(e.target.value)}
+                    placeholder="Documento o ID..."
+                    className="w-full text-center text-4xl font-black p-6 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 outline-none transition-all placeholder:text-slate-300"
+                    autoFocus
+                  />
+                  <button type="submit" className="hidden">Enviar</button>
+                </form>
+              </div>
+            )}
           </div>
         )}
 

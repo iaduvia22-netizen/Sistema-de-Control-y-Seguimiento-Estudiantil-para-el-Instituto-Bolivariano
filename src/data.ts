@@ -592,6 +592,41 @@ class StateManager {
     return { estudiante: nuevoEstudiante, pin: nuevoPin };
   }
 
+  registrarEntradaKiosco(identificador: string, idCoordinador: string): { status: 'success' | 'error', message: string, estudiante?: Estudiante } {
+    const estudiantes = this.getEstudiantes();
+    const estudiante = estudiantes.find(e => e.id_estudiante === identificador || e.numero_documento === identificador);
+    
+    if (!estudiante) {
+      return { status: 'error', message: 'Estudiante no encontrado. Verifique el ID o Documento.' };
+    }
+
+    const hoy = new Date().toISOString().split('T')[0];
+    const asistencias = this.getAsistencias();
+    
+    const yaRegistro = asistencias.find(a => a.id_estudiante === estudiante.id_estudiante && a.fecha === hoy);
+    
+    if (yaRegistro) {
+      return { status: 'error', message: `Entrada Duplicada: ${estudiante.nombres} ya ingresó hoy.`, estudiante };
+    }
+
+    const nuevaAsistencia: Asistencia = {
+      id_asistencia: `ASI-${Math.floor(10000 + Math.random() * 90000)}`,
+      id_estudiante: estudiante.id_estudiante,
+      id_docente: idCoordinador,
+      id_grado: estudiante.grado_id,
+      fecha: hoy,
+      hora_registro: new Date().toLocaleTimeString('es-CO', { hour12: false }),
+      estado_asistencia: 'Presente',
+      observacion: 'Ingreso por Torniquete Principal',
+      registrado_por: 'Kiosco Automático',
+      fecha_creacion: new Date().toISOString()
+    };
+
+    this.setStorageItem('asistencias', [...asistencias, nuevaAsistencia]);
+
+    return { status: 'success', message: 'ENTRADA REGISTRADA', estudiante };
+  }
+
   importarEstudiantesCSV(csvString: string, idCoordinador: string): number {
     const lineas = csvString.split('\n').filter(l => l.trim() !== '');
     if (lineas.length <= 1) return 0; // Solo cabecera o vacío
