@@ -142,7 +142,8 @@ export const INITIAL_ESTUDIANTES: Estudiante[] = [
     grado_id: 'GRADO-11A',
     jornada: 'Mañana',
     estado: 'Activo',
-    fecha_ingreso: '2024-01-22'
+    fecha_ingreso: '2024-01-22',
+    codigo_acceso: '1234'
   },
   {
     id_estudiante: 'EST-102',
@@ -154,7 +155,8 @@ export const INITIAL_ESTUDIANTES: Estudiante[] = [
     grado_id: 'GRADO-11A',
     jornada: 'Mañana',
     estado: 'Activo',
-    fecha_ingreso: '2024-01-22'
+    fecha_ingreso: '2024-01-22',
+    codigo_acceso: '2345'
   },
   {
     id_estudiante: 'EST-103',
@@ -166,7 +168,8 @@ export const INITIAL_ESTUDIANTES: Estudiante[] = [
     grado_id: 'GRADO-11A',
     jornada: 'Mañana',
     estado: 'Activo',
-    fecha_ingreso: '2024-01-25'
+    fecha_ingreso: '2024-01-25',
+    codigo_acceso: '3456'
   },
   // Ciclo V Sábado students
   {
@@ -179,7 +182,8 @@ export const INITIAL_ESTUDIANTES: Estudiante[] = [
     grado_id: 'GRADO-CV',
     jornada: 'Sábado',
     estado: 'Activo',
-    fecha_ingreso: '2025-01-18'
+    fecha_ingreso: '2025-01-18',
+    codigo_acceso: '4567'
   },
   {
     id_estudiante: 'EST-202',
@@ -191,7 +195,8 @@ export const INITIAL_ESTUDIANTES: Estudiante[] = [
     grado_id: 'GRADO-CV',
     jornada: 'Sábado',
     estado: 'Activo',
-    fecha_ingreso: '2025-01-18'
+    fecha_ingreso: '2025-01-18',
+    codigo_acceso: '5678'
   },
   {
     id_estudiante: 'EST-203',
@@ -203,7 +208,8 @@ export const INITIAL_ESTUDIANTES: Estudiante[] = [
     grado_id: 'GRADO-CV',
     jornada: 'Sábado',
     estado: 'Activo',
-    fecha_ingreso: '2025-01-18'
+    fecha_ingreso: '2025-01-18',
+    codigo_acceso: '6789'
   }
 ];
 
@@ -528,6 +534,86 @@ class StateManager {
 
   getAuditoria(): Auditoria[] {
     return this.getStorageItem<Auditoria[]>('auditoria', INITIAL_AUDITORIA);
+  }
+
+  // Nuevos métodos de Autenticación e Importación
+  loginAcudiente(credencial: string): Usuario | null {
+    const estudiante = this.getEstudiantes().find(e => 
+      e.codigo_acceso === credencial || 
+      `${e.nombres} ${e.apellidos}`.toLowerCase() === credencial.toLowerCase()
+    );
+
+    if (!estudiante) return null;
+
+    const relacion = this.getRelaciones().find(r => r.id_estudiante === estudiante.id_estudiante && r.es_principal);
+    if (!relacion) return null;
+
+    const acudiente = this.getUsuarios().find(u => u.id_usuario === relacion.id_acudiente && u.rol_id === 'acudiente');
+    return acudiente || null;
+  }
+
+  importarEstudiantesCSV(csvString: string, idCoordinador: string): number {
+    const lineas = csvString.split('\n').filter(l => l.trim() !== '');
+    if (lineas.length <= 1) return 0; // Solo cabecera o vacío
+
+    const nuevosEstudiantes: Estudiante[] = [];
+    const estudiantesActuales = this.getEstudiantes();
+    let agregados = 0;
+
+    for (let i = 1; i < lineas.length; i++) {
+      const parts = lineas[i].split(',').map(s => s.trim());
+      // Asumimos formato: documento,nombres,apellidos,grado_id,jornada
+      const [documento, nombres, apellidos, grado_id, jornada] = parts;
+
+      if (!documento || !nombres || !apellidos) continue;
+
+      const duplicado = estudiantesActuales.some(e => 
+        e.numero_documento === documento && 
+        e.grado_id === (grado_id || 'GRADO-11A') && 
+        e.jornada === (jornada || 'Mañana')
+      ) || nuevosEstudiantes.some(e => 
+        e.numero_documento === documento && 
+        e.grado_id === (grado_id || 'GRADO-11A') && 
+        e.jornada === (jornada || 'Mañana')
+      );
+
+      if (!duplicado) {
+        nuevosEstudiantes.push({
+          id_estudiante: `EST-${Math.floor(1000 + Math.random() * 9000)}`,
+          tipo_documento: 'TI',
+          numero_documento: documento,
+          nombres,
+          apellidos,
+          fecha_nacimiento: '2010-01-01', // Valor por defecto
+          grado_id: grado_id || 'GRADO-11A',
+          jornada: jornada || 'Mañana',
+          estado: 'Activo',
+          fecha_ingreso: new Date().toISOString().split('T')[0],
+          codigo_acceso: Math.floor(1000 + Math.random() * 9000).toString()
+        });
+        agregados++;
+      }
+    }
+
+    if (agregados > 0) {
+      this.setStorageItem('estudiantes', [...estudiantesActuales, ...nuevosEstudiantes]);
+      
+      const coordinador = this.getUsuarios().find(u => u.id_usuario === idCoordinador);
+      if (coordinador) {
+        this.addAuditLog(
+          coordinador.id_usuario,
+          `${coordinador.nombres} ${coordinador.apellidos}`,
+          coordinador.rol_id,
+          'Importar Estudiantes',
+          'Estudiantes',
+          `Se importaron ${agregados} estudiantes mediante CSV.`,
+          '127.0.0.1',
+          'Plataforma Web'
+        );
+      }
+    }
+    
+    return agregados;
   }
 
   // Mutadores

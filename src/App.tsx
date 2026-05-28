@@ -32,9 +32,33 @@ export default function App() {
     }
   }, []);
 
-  const handleLogin = (user: Usuario) => {
-    setCurrentUser(user);
-    sessionStorage.setItem('ib_sesion_usuario', JSON.stringify(user));
+  const handleLogin = (data: { tipo: 'personal' | 'acudiente'; credencial: string }) => {
+    let user: Usuario | null = null;
+    
+    if (data.tipo === 'personal') {
+      user = db.getUsuarios().find(u => u.id_usuario === data.credencial) || null;
+    } else {
+      user = db.loginAcudiente(data.credencial);
+    }
+    
+    if (user) {
+      user.ultimo_acceso = new Date().toISOString();
+      db.addAuditLog(
+        user.id_usuario,
+        `${user.nombres} ${user.apellidos}`,
+        user.rol_id,
+        'Iniciar Sesión',
+        'Usuarios',
+        `Inicio de sesión exitoso en la plataforma utilizando el login ${data.tipo}.`,
+        `190.248.0.1`,
+        'Navegador Web'
+      );
+
+      setCurrentUser(user);
+      sessionStorage.setItem('ib_sesion_usuario', JSON.stringify(user));
+    } else {
+      alert("Credenciales inválidas o no se encontró un usuario asociado.");
+    }
   };
 
   const handleLogout = () => {
@@ -90,7 +114,7 @@ export default function App() {
                 const currentIdx = users.findIndex(u => u.id_usuario === currentUser.id_usuario);
                 const nextIdx = (currentIdx + 1) % users.length;
                 const nextUser = users[nextIdx];
-                handleLogin(nextUser);
+                handleLogin({ tipo: 'personal', credencial: nextUser.id_usuario });
               }}
               className="bg-brand-800 hover:bg-brand-700 p-1.5 px-2 rounded-lg text-[9px] font-bold text-white transition-colors cursor-pointer flex items-center gap-1.5"
               title="Cambiar rápidamente a otra cuenta mock para probar el flujo de acuse de firma"

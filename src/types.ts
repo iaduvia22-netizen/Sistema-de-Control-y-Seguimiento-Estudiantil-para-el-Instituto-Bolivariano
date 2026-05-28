@@ -63,6 +63,7 @@ export interface Estudiante {
   estado: 'Activo' | 'Inactivo' | 'Retirado';
   fecha_ingreso: string;
   avatar_url?: string;
+  codigo_acceso?: string;
 }
 
 // 5. Relación Estudiante - Acudiente
